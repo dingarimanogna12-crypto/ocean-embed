@@ -1,0 +1,28 @@
+[
+  {
+    "id": 1,
+    "date": "2026-09-30",
+    "latitude": 15.5,
+    "longitude": 72.5,
+    "sst": 28.4,
+    "sss": 35.2,
+    "ssh": 0.42,
+    "current_u": 0.35,
+    "current_v": -0.12,
+    "wind_u": 4.2,
+    "wind_v": 2.1
+  },
+  {
+    "id": 2,
+    "date": "2026-09-30",
+    "latitude": 18.0,
+    "longitude": 73.5,
+    "sst": 27.9,
+    "sss": 35.1,
+    "ssh": 0.38,
+    "current_u": 0.28,
+    "current_v": -0.08,
+    "wind_u": 3.8,
+    "wind_v": 1.9
+  }
+]
