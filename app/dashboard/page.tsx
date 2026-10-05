@@ -22,28 +22,48 @@ export default function Dashboard() {
     useState<Observation | null>(null);
 
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadObservation() {
-      const supabase = createClient();
+      try {
+        const supabase = createClient();
 
-      const { data, error } = await supabase
-        .from("observations")
-        .select("*")
-        .order("date", { ascending: false })
-        .limit(1);
+        const { data, error } = await supabase
+          .from("observations")
+          .select("*")
+          .order("date", { ascending: false })
+          .limit(1);
 
-      if (error) {
-        console.error("Supabase error:", error);
+        console.log("OceanEmbed Supabase data:", data);
+        console.log("OceanEmbed Supabase error:", error);
+
+        if (error) {
+          setErrorMessage(error.message);
+          setLoading(false);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          setObservation(data[0]);
+        } else {
+          setErrorMessage(
+            "Supabase connected successfully, but returned 0 observations."
+          );
+        }
+
         setLoading(false);
-        return;
-      }
+      } catch (error) {
+        console.error("Dashboard error:", error);
 
-      if (data && data.length > 0) {
-        setObservation(data[0]);
-      }
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Unknown Supabase connection error."
+        );
 
-      setLoading(false);
+        setLoading(false);
+      }
     }
 
     loadObservation();
@@ -74,10 +94,14 @@ export default function Dashboard() {
         </div>
       )}
 
-      {!loading && !observation && (
-        <div className="mt-10 rounded-2xl border border-red-400/20 bg-red-400/5 p-8">
-          <p className="text-red-300">
-            No ocean observations found.
+      {!loading && errorMessage && (
+        <div className="mt-10 rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-8">
+          <p className="text-yellow-300 font-semibold">
+            Supabase diagnostic
+          </p>
+
+          <p className="mt-3 text-slate-300">
+            {errorMessage}
           </p>
         </div>
       )}
@@ -111,10 +135,6 @@ export default function Dashboard() {
               <p className="mt-3 text-3xl font-bold text-cyan-400">
                 {observation.sst}°C
               </p>
-
-              <p className="mt-2 text-xs text-slate-500">
-                SST
-              </p>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-slate-900 p-6">
@@ -125,10 +145,6 @@ export default function Dashboard() {
               <p className="mt-3 text-3xl font-bold text-cyan-400">
                 {observation.sss}
               </p>
-
-              <p className="mt-2 text-xs text-slate-500">
-                SSS
-              </p>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-slate-900 p-6">
@@ -138,10 +154,6 @@ export default function Dashboard() {
 
               <p className="mt-3 text-3xl font-bold text-cyan-400">
                 {observation.ssh} m
-              </p>
-
-              <p className="mt-2 text-xs text-slate-500">
-                SSH / SLA
               </p>
             </div>
 
@@ -175,7 +187,7 @@ export default function Dashboard() {
                 </p>
 
                 <p className="mt-2 text-2xl font-bold">
-                  {observation.wind_u}
+                  {observation.wind_u ?? "Not available"}
                 </p>
               </div>
 
@@ -185,7 +197,7 @@ export default function Dashboard() {
                 </p>
 
                 <p className="mt-2 text-2xl font-bold">
-                  {observation.wind_v}
+                  {observation.wind_v ?? "Not available"}
                 </p>
               </div>
 
