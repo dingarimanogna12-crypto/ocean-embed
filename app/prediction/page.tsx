@@ -944,6 +944,6 @@ export default function PredictionPage() {
       }
     >
       <PredictionPageContent />
-    </Suspense>i
+    </Suspense>
   );
 }
