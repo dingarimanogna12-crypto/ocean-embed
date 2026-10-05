@@ -26,3 +26,4 @@ data/real/
 
 # Accidental duplicate/generated folders
 ml/ml/
+tore --staged .git restore --staged .
