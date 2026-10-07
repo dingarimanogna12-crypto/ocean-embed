@@ -1,5 +1,20 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Deploying predictions
+
+The prediction API runs the Python model as a separate FastAPI service; Vercel
+serves the Next.js frontend and proxies prediction requests to that service.
+
+1. Create a Render Blueprint from this repository using `render.yaml`. The
+   blueprint deploys the service from `backend/`.
+2. In the Vercel project settings, add `OCEANEMBED_API_URL` for Production and
+   Preview. Set it to the Render service's base URL, without a trailing
+   `/predict` (for example, `https://oceanembed-prediction-api.onrender.com`).
+3. Redeploy the Vercel project after setting the variable.
+
+The first prediction after a free Render service has been idle may take longer
+while Render wakes the service.
+
 ## Getting Started
 
 First, run the development server:

@@ -20,6 +20,7 @@ ml/data/*.nc
 # Trained ML models
 ml/models/
 *.pkl
+!backend/model/oceanembed_step32_neural.pkl
 
 # Generated frontend data
 data/real/
