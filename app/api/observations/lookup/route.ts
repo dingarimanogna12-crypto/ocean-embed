@@ -1,11 +1,21 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { createClient } from "@supabase/supabase-js";
+
+type Observation = {
+  id: number;
+  date: string;
+  latitude: number;
+  longitude: number;
+  sst: number | null;
+  sss: number | null;
+  ssh: number | null;
+  current_u: number | null;
+  current_v: number | null;
+};
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-
     const latitude = Number(searchParams.get("latitude"));
     const longitude = Number(searchParams.get("longitude"));
 
@@ -19,99 +29,123 @@ export async function GET(request: Request) {
       );
     }
 
-    const csvPath = path.join(
-      process.cwd(),
-      "ml",
-      "data",
-      "real",
-      "multidate_real_training.csv"
-    );
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-    if (!fs.existsSync(csvPath)) {
+    if (!supabaseUrl || !supabaseKey) {
       return NextResponse.json(
         {
           success: false,
-          error: "Observation dataset not found.",
+          error: "Supabase environment variables are missing.",
         },
         { status: 500 }
       );
     }
 
-    const csv = fs.readFileSync(csvPath, "utf-8");
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const { data, error } = await supabase
+      .from("observations")
+      .select(
+        "id,date,latitude,longitude,sst,sss,ssh,current_u,current_v"
+      );
 
-    const lines = csv
-      .split(/\r?\n/)
-      .filter((line) => line.trim());
-
-    const headers = lines[0].split(",");
-
-    const latitudeIndex = headers.indexOf("latitude");
-    const longitudeIndex = headers.indexOf("longitude");
-    const sstIndex = headers.indexOf("sst");
-    const sssIndex = headers.indexOf("sss");
-    const sshIndex = headers.indexOf("ssh");
-    const currentUIndex = headers.indexOf("current_u");
-    const currentVIndex = headers.indexOf("current_v");
-
-    let bestRow: string[] | null = null;
-    let bestDistance = Infinity;
-
-    for (let i = 1; i < lines.length; i++) {
-      const row = lines[i].split(",");
-
-      const rowLat = Number(row[latitudeIndex]);
-      const rowLon = Number(row[longitudeIndex]);
-
-      if (!Number.isFinite(rowLat) || !Number.isFinite(rowLon)) {
-        continue;
-      }
-
-      const distance =
-        Math.pow(rowLat - latitude, 2) +
-        Math.pow(rowLon - longitude, 2);
-
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestRow = row;
-      }
-    }
-
-    if (!bestRow) {
+    if (error) {
+      console.error("Supabase observation lookup error:", error);
       return NextResponse.json(
         {
           success: false,
-          error: "No nearby observation found.",
+          error: "Could not read observations from Supabase.",
+          details: error.message,
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!data?.length) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "The Supabase observations table is empty.",
         },
         { status: 404 }
       );
     }
 
+    const observations = data as Observation[];
+    let nearestObservation: Observation | undefined;
+    let smallestDistance = Number.POSITIVE_INFINITY;
+
+    for (const observation of observations) {
+      const rowLatitude = Number(observation.latitude);
+      const rowLongitude = Number(observation.longitude);
+      if (!Number.isFinite(rowLatitude) || !Number.isFinite(rowLongitude)) {
+        continue;
+      }
+
+      const distance =
+        (rowLatitude - latitude) ** 2 + (rowLongitude - longitude) ** 2;
+
+      if (distance < smallestDistance) {
+        smallestDistance = distance;
+        nearestObservation = observation;
+      }
+    }
+
+    if (!nearestObservation) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "No Supabase observations have valid coordinates.",
+        },
+        { status: 404 }
+      );
+    }
+
+    const requiredValues = {
+      sst: nearestObservation.sst,
+      sss: nearestObservation.sss,
+      ssh: nearestObservation.ssh,
+      current_u: nearestObservation.current_u,
+      current_v: nearestObservation.current_v,
+    };
+    const missingField = Object.entries(requiredValues).find(
+      ([, value]) => value === null || !Number.isFinite(Number(value))
+    )?.[0];
+
+    if (missingField) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `The nearest Supabase observation is missing a valid ${missingField} value.`,
+        },
+        { status: 422 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
-      requested_location: {
-        latitude,
-        longitude,
-      },
+      requested_location: { latitude, longitude },
       observation: {
-        latitude: Number(bestRow[latitudeIndex]),
-        longitude: Number(bestRow[longitudeIndex]),
-        sst: Number(bestRow[sstIndex]),
-        sss: Number(bestRow[sssIndex]),
-        ssh: Number(bestRow[sshIndex]),
-        current_u: Number(bestRow[currentUIndex]),
-        current_v: Number(bestRow[currentVIndex]),
+        latitude: Number(nearestObservation.latitude),
+        longitude: Number(nearestObservation.longitude),
+        sst: Number(nearestObservation.sst),
+        sss: Number(nearestObservation.sss),
+        ssh: Number(nearestObservation.ssh),
+        current_u: Number(nearestObservation.current_u),
+        current_v: Number(nearestObservation.current_v),
       },
+      distance_degrees: Number(Math.sqrt(smallestDistance).toFixed(4)),
+      observation_count: observations.length,
     });
   } catch (error) {
     console.error("Observation lookup error:", error);
-
     return NextResponse.json(
       {
         success: false,
         error:
           error instanceof Error
             ? error.message
-            : "Unknown error",
+            : "Failed to look up a Supabase observation.",
       },
       { status: 500 }
     );
