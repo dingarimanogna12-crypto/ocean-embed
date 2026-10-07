@@ -39,9 +39,9 @@ export default function MapPicker() {
     setProfile([]);
 
     try {
-      // 1. Find nearest real GLORYS observation
+      // 1. Find the nearest Supabase observation
       const observationResponse = await fetch(
-        `/api/observations/lookup?latitude=${location.lat}&longitude=${location.lon}`
+        `/api/observations/location?lat=${location.lat}&lon=${location.lon}`
       );
 
       const observationResult = await observationResponse.json();
@@ -182,7 +182,7 @@ export default function MapPicker() {
           <div className="mt-4 pt-4 border-t border-slate-700">
 
             <div className="text-sm text-cyan-400 font-semibold mb-3">
-              REAL GLORYS SURFACE OBSERVATION
+              SUPABASE SURFACE OBSERVATION
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
