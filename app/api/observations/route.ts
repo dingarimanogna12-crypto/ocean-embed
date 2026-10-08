@@ -4,6 +4,8 @@ import path from "path";
 
 export const maxDuration = 60;
 
+const DEFAULT_PREDICTION_API_URL = "https://ocean-embed-8int.onrender.com";
+
 async function runLocalPrediction(
   input: Record<string, number>
 ): Promise<unknown> {
@@ -114,36 +116,29 @@ export async function POST(request: Request) {
       );
     }
 
-    const apiUrl = process.env.OCEANEMBED_API_URL?.replace(/\/+$/, "");
+    const configuredApiUrl = process.env.OCEANEMBED_API_URL?.trim();
 
-    if (!apiUrl) {
-      if (process.env.NODE_ENV === "development") {
-        try {
-          return NextResponse.json(await runLocalPrediction(input));
-        } catch (error) {
-          console.error("Local OceanEmbed prediction failed:", error);
-          return NextResponse.json(
-            {
-              success: false,
-              error:
-                error instanceof Error
-                  ? error.message
-                  : "Local prediction failed.",
-            },
-            { status: 500 }
-          );
-        }
+    if (!configuredApiUrl && process.env.NODE_ENV === "development") {
+      try {
+        return NextResponse.json(await runLocalPrediction(input));
+      } catch (error) {
+        console.error("Local OceanEmbed prediction failed:", error);
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Local prediction failed.",
+          },
+          { status: 500 }
+        );
       }
-
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Prediction backend is not configured. Set OCEANEMBED_API_URL in the Vercel project environment.",
-        },
-        { status: 503 }
-      );
     }
+
+    const apiUrl = (
+      configuredApiUrl || DEFAULT_PREDICTION_API_URL
+    ).replace(/\/+$/, "");
 
     let response: Response;
 
